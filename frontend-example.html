@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>认证系统前端示例</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #28a745;
+            background-color: #d4edda;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            color: #17a2b8;
+            background-color: #d1ecf1;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .token-display {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .user-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 认证系统前端示例</h1>
+    
+    <!-- 注册表单 -->
+    <div class="container">
+        <h2>📝 用户注册</h2>
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="regUsername">用户名:</label>
+                <input type="text" id="regUsername" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="regPassword">密码:</label>
+                <input type="password" id="regPassword" name="password" required>
+            </div>
+            <button type="submit">注册</button>
+        </form>
+        <div id="registerResult"></div>
+    </div>
+
+    <!-- 登录表单 -->
+    <div class="container">
+        <h2>🔑 用户登录</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="loginUsername">用户名:</label>
+                <input type="text" id="loginUsername" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">密码:</label>
+                <input type="password" id="loginPassword" name="password" required>
+            </div>
+            <button type="submit">登录</button>
+        </form>
+        <div id="loginResult"></div>
+    </div>
+
+    <!-- Token 信息显示 -->
+    <div class="container">
+        <h2>🎫 Token 信息</h2>
+        <div id="tokenInfo">
+            <div class="info">请先登录获取 Token</div>
+        </div>
+    </div>
+
+    <!-- 受保护的资源访问 -->
+    <div class="container">
+        <h2>🔒 受保护的资源</h2>
+        <button id="fetchProtectedData" disabled>获取受保护数据</button>
+        <div id="protectedDataResult"></div>
+    </div>
+
+    <!-- 用户信息 -->
+    <div class="container">
+        <h2>👤 用户信息</h2>
+        <div id="userInfo">
+            <div class="info">未登录</div>
+        </div>
+    </div>
+
+    <script>
+        // 存储 token 和用户信息
+        let currentToken = localStorage.getItem('auth_token');
+        let currentUser = JSON.parse(localStorage.getItem('auth_user') || 'null');
+
+        // 更新 UI 状态
+        function updateUI() {
+            const tokenInfo = document.getElementById('tokenInfo');
+            const userInfo = document.getElementById('userInfo');
+            const fetchBtn = document.getElementById('fetchProtectedData');
+
+            if (currentToken && currentUser) {
+                // 显示 token 信息
+                tokenInfo.innerHTML = `
+                    <div class="success">✅ 已登录</div>
+                    <div class="token-display">
+                        <strong>Token:</strong><br>
+                        ${currentToken}
+                    </div>
+                    <div class="user-info">
+                        <strong>用户ID:</strong> ${currentUser.userId}<br>
+                        <strong>用户名:</strong> ${currentUser.username}
+                    </div>
+                `;
+
+                // 显示用户信息
+                userInfo.innerHTML = `
+                    <div class="success">✅ 当前用户: ${currentUser.username}</div>
+                    <button onclick="logout()">退出登录</button>
+                `;
+
+                // 启用受保护资源按钮
+                fetchBtn.disabled = false;
+            } else {
+                // 未登录状态
+                tokenInfo.innerHTML = '<div class="info">请先登录获取 Token</div>';
+                userInfo.innerHTML = '<div class="info">未登录</div>';
+                fetchBtn.disabled = true;
+            }
+        }
+
+        // 注册功能
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const username = formData.get('username');
+            const password = formData.get('password');
+
+            try {
+                const response = await fetch('http://localhost:3000/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('registerResult').innerHTML = `
+                        <div class="success">✅ 注册成功！</div>
+                        <div class="token-display">
+                            <strong>Token:</strong><br>
+                            ${result.access_token}
+                        </div>
+                    `;
+                    
+                    // 自动保存 token 和用户信息
+                    currentToken = result.access_token;
+                    currentUser = { userId: '新注册用户', username };
+                    localStorage.setItem('auth_token', currentToken);
+                    localStorage.setItem('auth_user', JSON.stringify(currentUser));
+                    updateUI();
+                } else {
+                    document.getElementById('registerResult').innerHTML = `
+                        <div class="error">❌ 注册失败: ${result.message}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('registerResult').innerHTML = `
+                    <div class="error">❌ 网络错误: ${error.message}</div>
+                `;
+            }
+        });
+
+        // 登录功能
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const username = formData.get('username');
+            const password = formData.get('password');
+
+            try {
+                const response = await fetch('http://localhost:3000/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('loginResult').innerHTML = `
+                        <div class="success">✅ 登录成功！</div>
+                        <div class="token-display">
+                            <strong>Token:</strong><br>
+                            ${result.access_token}
+                        </div>
+                    `;
+                    
+                    // 保存 token 和用户信息
+                    currentToken = result.access_token;
+                    currentUser = { userId: '已登录用户', username };
+                    localStorage.setItem('auth_token', currentToken);
+                    localStorage.setItem('auth_user', JSON.stringify(currentUser));
+                    updateUI();
+                } else {
+                    document.getElementById('loginResult').innerHTML = `
+                        <div class="error">❌ 登录失败: ${result.message}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('loginResult').innerHTML = `
+                    <div class="error">❌ 网络错误: ${error.message}</div>
+                `;
+            }
+        });
+
+        // 获取受保护的资源
+        document.getElementById('fetchProtectedData').addEventListener('click', async () => {
+            if (!currentToken) {
+                alert('请先登录！');
+                return;
+            }
+
+            try {
+                // 这里模拟调用需要认证的 API
+                const response = await fetch('http://localhost:3000/auth/protected', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById('protectedDataResult').innerHTML = `
+                        <div class="success">✅ 获取成功！</div>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                } else {
+                    document.getElementById('protectedDataResult').innerHTML = `
+                        <div class="error">❌ 获取失败: ${response.status}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('protectedDataResult').innerHTML = `
+                    <div class="error">❌ 网络错误: ${error.message}</div>
+                `;
+            }
+        });
+
+        // 退出登录
+        function logout() {
+            currentToken = null;
+            currentUser = null;
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_user');
+            updateUI();
+            
+            // 清空表单结果
+            document.getElementById('registerResult').innerHTML = '';
+            document.getElementById('loginResult').innerHTML = '';
+            document.getElementById('protectedDataResult').innerHTML = '';
+        }
+
+        // 页面加载时更新 UI
+        updateUI();
+    </script>
+</body>
+</html>
