@@ -18,6 +18,8 @@ const user_service_1 = require("./user.service");
 const jwt_service_1 = require("./jwt.service");
 const login_dto_1 = require("./dto/login.dto");
 const register_dto_1 = require("./dto/register.dto");
+const update_profile_dto_1 = require("./dto/update-profile.dto");
+const jwt_auth_guard_1 = require("./jwt-auth.guard");
 let AuthController = class AuthController {
     userService;
     authJwtService;
@@ -34,6 +36,7 @@ let AuthController = class AuthController {
         const token = await this.authJwtService.generateToken({
             userId: user._id,
             username: user.username,
+            access: user.access
         });
         console.log('[REGISTER]', {
             username: registerDto.username,
@@ -62,6 +65,7 @@ let AuthController = class AuthController {
         const token = await this.authJwtService.generateToken({
             userId: user._id,
             username: user.username,
+            access: user.access
         });
         console.log('[LOGIN-SUCCESS]', {
             username: loginDto.username,
@@ -73,6 +77,45 @@ let AuthController = class AuthController {
             statusCode: common_1.HttpStatus.OK,
             message: '登录成功',
             access_token: token,
+        };
+    }
+    async updateProfile(updateDto, req) {
+        let token;
+        let updatedUser;
+        try {
+            const userId = req.user?.userId;
+            if (!userId) {
+                throw new common_1.UnauthorizedException('未授权访问');
+            }
+            if (!updateDto.currentPassword && (updateDto.newUsername || updateDto.newPassword)) {
+                throw new common_1.UnauthorizedException('修改用户名或密码需要提供当前密码');
+            }
+            updatedUser = await this.userService.updateUser(userId, {
+                newUsername: updateDto.newUsername,
+                newPassword: updateDto.newPassword,
+                currentPassword: updateDto.currentPassword
+            });
+            token = await this.authJwtService.generateToken({
+                userId: updatedUser._id,
+                username: updatedUser.username,
+                access: updatedUser.access
+            });
+        }
+        catch (error) {
+            console.error('更新资料失败:', error);
+            if (error instanceof common_1.UnauthorizedException) {
+                throw error;
+            }
+            throw new common_1.ConflictException(error.message || '更新资料失败');
+        }
+        return {
+            statusCode: common_1.HttpStatus.OK,
+            message: '资料更新成功',
+            access_token: token,
+            user: {
+                userId: updatedUser._id,
+                username: updatedUser.username
+            }
         };
     }
 };
@@ -93,6 +136,16 @@ __decorate([
     __metadata("design:paramtypes", [login_dto_1.LoginDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
+__decorate([
+    (0, common_1.Put)('profile'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [update_profile_dto_1.UpdateProfileDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "updateProfile", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [user_service_1.UserService,

@@ -71,7 +71,34 @@ let UserService = class UserService {
         const user = new this.userModel({
             username,
             password: hashedPassword,
+            access: {
+                access1: 'card1',
+                access2: 'card2'
+            }
         });
+        return user.save();
+    }
+    async updateUser(userId, update) {
+        const user = await this.userModel.findById(userId).exec();
+        if (!user) {
+            throw new Error(`User with ID ${userId} not found`);
+        }
+        if ((update.newPassword || update.newUsername) && !update.currentPassword) {
+            throw new Error('Current password is required for security-sensitive updates');
+        }
+        if (update.currentPassword && !await bcrypt.compare(update.currentPassword, user.password)) {
+            throw new Error('Current password is incorrect');
+        }
+        if (update.newUsername) {
+            const existingUser = await this.findByUsername(update.newUsername);
+            if (existingUser && existingUser._id.toString() !== userId) {
+                throw new Error('Username already taken');
+            }
+            user.username = update.newUsername;
+        }
+        if (update.newPassword) {
+            user.password = await bcrypt.hash(update.newPassword, 10);
+        }
         return user.save();
     }
 };

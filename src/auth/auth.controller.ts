@@ -1,5 +1,6 @@
 // 导入NestJS的核心装饰器和HTTP状态码常量
-import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException, ConflictException, Put, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 // Controller: 定义控制器类
 // Post: 处理HTTP POST请求
 // Body: 获取请求体数据
@@ -11,6 +12,8 @@ import { UserService } from './user.service'; // 导入用户服务，处理用�
 import { AuthJwtService } from './jwt.service'; // 导入JWT服务，处理token生成验证
 import { LoginDto } from './dto/login.dto'; // 导入登录数据传输对象
 import { RegisterDto } from './dto/register.dto'; // 导入注册数据传输对象
+import { UpdateProfileDto } from './dto/update-profile.dto'; // 导入更新资料DTO
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 // @Controller装饰器定义这是一个控制器，'auth'表示路由前缀为/auth
 @Controller('auth')
@@ -37,6 +40,7 @@ export class AuthController {
     const token = await this.authJwtService.generateToken({
       userId: user._id,
       username: user.username,
+      access: user.access // 添加access权限信息
     });
     // 打印用户名、原始密码、加密密码和token
     console.log('[REGISTER]', {
@@ -79,6 +83,7 @@ export class AuthController {
     const token = await this.authJwtService.generateToken({
       userId: user._id, // 用户唯一标识
       username: user.username, // 用户名
+      access: user.access // 添加access权限信息
     });
     // 打印用户名、原始密码、加密密码和token
     console.log('[LOGIN-SUCCESS]', {
@@ -93,6 +98,66 @@ export class AuthController {
       statusCode: HttpStatus.OK, // 200状态码
       message: '登录成功', // 成功消息
       access_token: token, // JWT token，前端需要保存此token用于后续请求
+    };
+  }
+
+  // 更新用户资料
+  @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async updateProfile(
+    @Body() updateDto: UpdateProfileDto,
+    @Req() req: Request & { user?: { userId: string } }
+  ) {
+    let token: string;
+    let updatedUser: any;
+    
+    try {
+      // 1. 从请求中获取用户ID（需要JWT守卫预先注入）
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new UnauthorizedException('未授权访问');
+      }
+      
+      // 2. 验证请求数据
+      if (!updateDto.currentPassword && (updateDto.newUsername || updateDto.newPassword)) {
+        throw new UnauthorizedException('修改用户名或密码需要提供当前密码');
+      }
+    
+      // 2. 调用服务更新用户信息
+      updatedUser = await this.userService.updateUser(
+        userId,
+        {
+          newUsername: updateDto.newUsername,
+          newPassword: updateDto.newPassword,
+          currentPassword: updateDto.currentPassword
+        }
+      );
+
+      // 3. 生成新token
+      token = await this.authJwtService.generateToken({
+        userId: updatedUser._id,
+        username: updatedUser.username,
+        access: updatedUser.access
+      });
+
+    } catch (error) {
+      console.error('更新资料失败:', error);
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new ConflictException(error.message || '更新资料失败');
+    }
+
+    // 4. 返回响应
+    return {
+      statusCode: HttpStatus.OK,
+      message: '资料更新成功',
+      access_token: token,
+      user: {
+        userId: updatedUser._id,
+        username: updatedUser.username
+      }
     };
   }
 }
