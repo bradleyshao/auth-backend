@@ -2,6 +2,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+
 // 使用@Schema装饰器定义这是一个Mongoose模式
 @Schema()
 // User类继承自Document，表示这是一个MongoDB文档
@@ -17,6 +18,9 @@ export class User extends Document {
   // 创建时间字段，default: Date.now表示默认值为当前时间
   @Prop({ default: Date.now })
   createdAt: Date; // 用户创建时间
+
+  @Prop({ type: Object, default: {} })
+  access: Record<string, string>; // 权限映射表：key为权限标识，value为页面标识
 }
 
 // 使用SchemaFactory根据User类创建Mongoose模式
