@@ -30,6 +30,7 @@ export declare class AuthController {
         user: {
             userId: any;
             username: any;
+            access: any;
         };
     }>;
 }

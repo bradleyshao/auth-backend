@@ -37,10 +37,7 @@ export class UserService {
     const user = new this.userModel({
       username,
       password: hashedPassword, // 存储加密后的密码
-      access: {
-        access1: 'card1',
-        access2: 'card2'
-      } // 给新用户分配默认权限
+      access: {} // 新用户不分配任何权限，需要管理员手动分配
     });
     // 3. 保存用户到数据库并返回结果
     return user.save();

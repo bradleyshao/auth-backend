@@ -71,10 +71,7 @@ let UserService = class UserService {
         const user = new this.userModel({
             username,
             password: hashedPassword,
-            access: {
-                access1: 'card1',
-                access2: 'card2'
-            }
+            access: {}
         });
         return user.save();
     }

@@ -114,7 +114,8 @@ let AuthController = class AuthController {
             access_token: token,
             user: {
                 userId: updatedUser._id,
-                username: updatedUser.username
+                username: updatedUser.username,
+                access: updatedUser.access
             }
         };
     }
